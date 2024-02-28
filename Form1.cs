@@ -1,19 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.ToolBar;
 using System.IO;
-using static System.Net.Mime.MediaTypeNames;
-using static System.Windows.Forms.LinkLabel;
-using System.Security.Authentication;
-using System.Diagnostics.SymbolStore;
 
 namespace TI_1
 {
@@ -57,7 +46,6 @@ namespace TI_1
                 ((System.Windows.Forms.TextBox)sender).ContextMenuStrip = null;
             }    
         }
-
         private void inputKeyTextBox_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Control && e.KeyCode == Keys.V)
@@ -97,7 +85,7 @@ namespace TI_1
                 line = sr.ReadLine();
                 while (line != null)
                 {
-                    text += line;
+                    text += line + "\r\n";
                     line = sr.ReadLine();
                 }
                 sr.Close();
@@ -151,8 +139,8 @@ namespace TI_1
                     char encryptedChar = (char)(encryptedCharValue + 'A');
                     encryptedString.Append(encryptedChar);
                 }
-                else
-                { 
+                else if (c == ' ')
+                {
                     encryptedString.Append(c);
                 }
             }
@@ -204,22 +192,32 @@ namespace TI_1
             }
             return letters; 
         }
+        private int HandleKeyForDecimation(string key)
+        {
+            StringBuilder newKey = new StringBuilder();
+            foreach (char c in key)
+            {
+                if (c >= '0' && c <= '9')
+                {
+                    newKey.Append(c);   
+                }
+            }
+            return Int32.Parse(newKey.ToString());
+        }
         public string HandleDecimationMethod()
         {
             const int NUM_OF_LATINIC_CHARS = 26;
-            int key = Convert.ToInt32(inputKeyTextBox.Text);
             string plaintext = textBox.Text;
-            if (key > 25 || key < 3)
-            {
-                MessageBox.Show("Недопустимый диапазон ввода для ключа (от 3 до 25)!");
-                return null;
-            }
-            bool isOkNOD = FindNOD(NUM_OF_LATINIC_CHARS, key);
+            string key = inputKeyTextBox.Text;
+            int intKey = HandleKeyForDecimation(key);
+            intKey %= 25;
+            inputKeyTextBox.Text = intKey.ToString();
+            bool isOkNOD = FindNOD(NUM_OF_LATINIC_CHARS, intKey);
             if (isOkNOD)
             {
                 encryptBtn.Enabled = false;
                 decipherBtn.Enabled = true;
-                return StartDecimationMethod(plaintext, key);
+                return StartDecimationMethod(plaintext, intKey);
             }
             else
             {
@@ -231,12 +229,13 @@ namespace TI_1
         {
             const int RUSSIAN_ALPHABET_LENGTH = 33;
             char[,] russianTable = new char[RUSSIAN_ALPHABET_LENGTH, RUSSIAN_ALPHABET_LENGTH];
+            const string RUSSIAN_LETTERS = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
             for (int i = 0; i < RUSSIAN_ALPHABET_LENGTH; i++)
             {
                 for (int j = 0; j < RUSSIAN_ALPHABET_LENGTH; j++)
                 {
-                    int unicode = 'а' + (i + j) % RUSSIAN_ALPHABET_LENGTH;
-                    russianTable[i, j] = (char)unicode;
+                    int index = (i + j) % RUSSIAN_ALPHABET_LENGTH;
+                    russianTable[i, j] = RUSSIAN_LETTERS[index];
                 }
             }
             return russianTable;
@@ -259,26 +258,21 @@ namespace TI_1
         }
         public string getCipherString(char[,] russianTable, char[,] vigenereDictionary, string plaintext)
         {
+            const string RUSSIAN_LETTERS = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
             StringBuilder cipherString = new StringBuilder();
             int plaintextCharIndex = 0;
             for (int i = 0; i < plaintext.Length; i++)
             {
                 if ((plaintext[i] >= 'а' && plaintext[i] <= 'я') || plaintext[i] == 'ё')
                 {
-                    if (plaintext[i] == 'ё')
-                        plaintextCharIndex = vigenereDictionary[0, i] - 'а' - 1;
-                    else
-                        plaintextCharIndex = vigenereDictionary[0, i] - 'а';
-                    int keyCharIndex = vigenereDictionary[1, i] - 'а';
+                    plaintextCharIndex = RUSSIAN_LETTERS.IndexOf(vigenereDictionary[0, i]);
+                    int keyCharIndex = RUSSIAN_LETTERS.IndexOf(vigenereDictionary[1, i]);
                     cipherString.Append(russianTable[plaintextCharIndex, keyCharIndex]);
                 }
                 else if ((plaintext[i] >= 'А' && plaintext[i] <= 'Я') || (plaintext[i] == 'Ё'))
                 {
-                    if (plaintext[i] == 'Ё')
-                        plaintextCharIndex = char.ToLower(vigenereDictionary[0, i]) - 'а' - 1;
-                    else
-                        plaintextCharIndex = char.ToLower(vigenereDictionary[0, i]) - 'а';
-                    int keyCharIndex = vigenereDictionary[1, i] - 'а';
+                    plaintextCharIndex = RUSSIAN_LETTERS.IndexOf(char.ToLower(vigenereDictionary[0, i]));
+                    int keyCharIndex = RUSSIAN_LETTERS.IndexOf(vigenereDictionary[1, i]);
                     cipherString.Append(char.ToUpper(russianTable[plaintextCharIndex, keyCharIndex]));                 
                 }
                 else
@@ -290,36 +284,27 @@ namespace TI_1
         }
         public string decipherVigenere(string cipherString, string key, char[,] vigenereDictionary, char[,] russianTable)
         {
+            const string RUSSIAN_LETTERS = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
             StringBuilder decipherString = new StringBuilder();
             const int NUM_OF_RUSSIAN_SYMBOLS = 33;
             for (int i = 0; i < cipherString.Length; i++)
             {
-                if (cipherString[i] >= 'а' && cipherString[i] <= 'я')
+                if (cipherString[i] >= 'а' && cipherString[i] <= 'я' || cipherString[i] == 'ё')
                 {
-                    int indexOfKeyChar = (int)((vigenereDictionary[1, i]) - 'а');
+                    int indexOfKeyChar = RUSSIAN_LETTERS.IndexOf(vigenereDictionary[1, i]);
                     for (int j = 0; j < NUM_OF_RUSSIAN_SYMBOLS; j++)
                     {
                         if (russianTable[indexOfKeyChar, j] == cipherString[i])
-                        {
-                            if (j == ('ё' - 'а' - 1))
-                                decipherString.Append('ё');
-                            else
-                                decipherString.Append((char)(j + 'а'));
-                        }
+                            decipherString.Append(RUSSIAN_LETTERS[j]);
                     }
                 }
                 else if (cipherString[i] >= 'А' && cipherString[i] <= 'Я')
                 {
-                    int indexOfKeyChar = (int)(char.ToLower(vigenereDictionary[1, i]) - 'а');
+                    int indexOfKeyChar = RUSSIAN_LETTERS.IndexOf(char.ToLower(vigenereDictionary[1, i]));
                     for (int j = 0; j < NUM_OF_RUSSIAN_SYMBOLS; j++)
                     {
                         if (char.ToLower(russianTable[indexOfKeyChar, j]) == char.ToLower(cipherString[i]))
-                        {
-                            if (j == ('ё' - 'а' - 1))
-                                decipherString.Append('Ё');
-                            else
-                                decipherString.Append(char.ToUpper((char)(j + 'а')));
-                        }
+                            decipherString.Append(char.ToUpper(RUSSIAN_LETTERS[j]));
                     }
                 }
                 else
@@ -330,12 +315,30 @@ namespace TI_1
             return decipherString.ToString();
 
         }
+        private string HandleKeyForVijener(string key)
+        {
+            StringBuilder rightKey = new StringBuilder();
+            foreach (char c in key)
+            {
+                if (c >= 'а' && c <= 'я' || c == 'ё')
+                    rightKey.Append(c);
+            }
+            return rightKey.ToString();
+        }
         public string HandleVijinerCipher()
         {
+            if (inputKeyTextBox.Text.Length > textBox.Text.Length)
+            {
+                MessageBox.Show("Ключ не должен быть больше текста!");
+                encryptBtn.Enabled = true;
+                return null;
+            }
+            string key = inputKeyTextBox.Text.ToLower();
+            inputKeyTextBox.Text = HandleKeyForVijener(key);
+            key = inputKeyTextBox.Text;
             const int RUSSIAN_ALPHABET_LENGTH = 33;
             this.russianTable = new char[RUSSIAN_ALPHABET_LENGTH, RUSSIAN_ALPHABET_LENGTH];
             this.russianTable = GetRussianTable();
-            string key = inputKeyTextBox.Text.ToLower();
             string plaintext = textBox.Text;
             char[,] vigenereDictionary = RelateKeyAndPlaintext(plaintext, key);
             return getCipherString(this.russianTable, vigenereDictionary, plaintext);
@@ -364,20 +367,7 @@ namespace TI_1
         }
         private void inputKeyTextBox_KeyPress(object sender, KeyPressEventArgs e)
         {
-            if (comboBox.SelectedIndex == 0)
-            {
-                if (!(e.KeyChar >= '0' && e.KeyChar <= '9') && (e.KeyChar != '\b'))
-                {
-                    e.Handled = true;
-                }
-            }
-            if (comboBox.SelectedIndex == 1)
-            {
-                if (!(e.KeyChar >= 'а' && e.KeyChar <= 'я') && (e.KeyChar != '\b'))
-                {
-                    e.Handled = true;
-                }
-            }
+            
         }
         public void WriteToFile(string path, string cipheredText)
         {
@@ -438,6 +428,11 @@ namespace TI_1
         {
             string plaintext = null;
             string cipherText = textBox.Text;
+            if (inputKeyTextBox.Text.Length > textBox.Text.Length)
+            {
+                MessageBox.Show("Ключ не должен быть больше текста!");
+                return;
+            }
             if (comboBox.SelectedIndex == 0)
             {
                 int key;
