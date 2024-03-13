@@ -194,15 +194,17 @@ namespace TI_1
         }
         private int HandleKeyForDecimation(string key)
         {
+            bool isDigitsInKey = false;
             StringBuilder newKey = new StringBuilder();
             foreach (char c in key)
             {
                 if (c >= '0' && c <= '9')
                 {
-                    newKey.Append(c);   
+                    newKey.Append(c);
+                    isDigitsInKey = true;
                 }
             }
-            return Int32.Parse(newKey.ToString());
+            return isDigitsInKey ? Int32.Parse(newKey.ToString()) : 0;
         }
         public string HandleDecimationMethod()
         {
@@ -336,6 +338,8 @@ namespace TI_1
             string key = inputKeyTextBox.Text.ToLower();
             inputKeyTextBox.Text = HandleKeyForVijener(key);
             key = inputKeyTextBox.Text;
+            if (key.Length == 0)
+                return null;
             const int RUSSIAN_ALPHABET_LENGTH = 33;
             this.russianTable = new char[RUSSIAN_ALPHABET_LENGTH, RUSSIAN_ALPHABET_LENGTH];
             this.russianTable = GetRussianTable();
